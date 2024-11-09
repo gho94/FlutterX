@@ -23,9 +23,9 @@ class PomodoroTimerScreenState extends State<PomodoroTimerScreen> {
   final TimeStorage timeStorage = TimeStorage();
   // 시간을 저장하고 불러오기 위한 TimeStorage 인스턴스 생성
   // TimeStorage클래스 : SharedPreferences 패키지를 이용해 앱 데이터를 영구 저장하고 불러오는 역할을 담당하는 클래스
-  int studySeconds = 10; // 집중시간 - 초단위
-  int breakSeconds = 5; // 휴식시간
-  int currentSeconds = 10; // 남은시간
+  int studySeconds = 25 * 60; // 집중시간 - 초단위
+  int breakSeconds = 5 * 60; // 휴식시간
+  int currentSeconds = 25 * 60; // 남은시간
   int accumulatedStudySeconds = 0; // 누적 집중시간
   int todayStudySeconds = 0; // 오늘 누적 집중시간
   int cycleCount = 0; // 사이클 수(집중+휴식 1세트)

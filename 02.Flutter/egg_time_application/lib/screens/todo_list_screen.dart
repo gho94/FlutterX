@@ -1,10 +1,6 @@
-// 나연님 색상표 불러오기
 import 'package:egg_time_application/common/color_styles.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-// 쉐어드 프리퍼랜스 불러오기
-
-// 쉐어드프리퍼랜스, 리스트뷰
 
 class TodoListScreen extends StatefulWidget {
   const TodoListScreen({super.key});
@@ -13,60 +9,93 @@ class TodoListScreen extends StatefulWidget {
   State<TodoListScreen> createState() => _TodoListScreenState();
 }
 
-//재료
 class _TodoListScreenState extends State<TodoListScreen> {
-  final List<String> _todoItems = [];
+  final List<Map<String, dynamic>> _todoItems = [];
   final TextEditingController _controller = TextEditingController();
-  // 텍스트 수정, 삭제, 관리하는 객체
 
-  @override // 부모위젯 재정렬
+  final List<String> _categories = ['A', 'B', 'C'];
+  String? _selectedCategory;
+
+  @override
   void initState() {
-    // 화면 초기 설정
     super.initState();
-    _loadTodoItems(); // 투두 불러오기
+    _loadTodoItems();
   }
 
-  // SharedPreferences에서 투두 항목 불러오기
   Future<void> _loadTodoItems() async {
-    final prefs =
-        await SharedPreferences.getInstance(); //쉐어드프리퍼렌스에 있는 걸 prefs에 넣기
-    final List<String>? items =
-        prefs.getStringList('todoItems'); //prefs의 투두아이템스(키값)으로 가져와서 아이템 리스트에 넣기
+    final prefs = await SharedPreferences.getInstance();
+    final List<String>? items = prefs.getStringList('todoItems');
+
     if (items != null) {
-      // 아이템 리스트에 값이 있으면
+      final updatedItems = items.map((item) {
+        final split = item.split('|');
+        return {
+          'task': split[0],
+          'category': split.length > 1 ? split[1] : 'Others',
+          'isChecked': split.length > 2 ? split[2] == 'true' : false,
+        };
+      }).toList();
+
       setState(() {
-        // 화면 업데이트
-        _todoItems.addAll(items); // 투두아이템을 아이템리스트에 다 추가해줘
+        _todoItems.addAll(updatedItems);
+        _applyCategorySort();
       });
     }
   }
 
-  // SharedPreferences에 투두 항목 저장하기
   Future<void> _saveTodoItems() async {
-    final prefs =
-        await SharedPreferences.getInstance(); // 쉐어드프리퍼렌스에 잇는걸 prefs에 넣기
+    final prefs = await SharedPreferences.getInstance();
     prefs.setStringList(
-        'todoItems', _todoItems); // prefs를 투두아이템스(키값)으로 투두아이템즈 리스트에 저장
+      'todoItems',
+      _todoItems
+          .map((item) =>
+              '${item['task']}|${item['category']}|${item['isChecked']}')
+          .toList(),
+    );
   }
 
   void _addTodoItem() {
-    if (_controller.text.isNotEmpty) {
-      // 컨트롤러에 있는 글이 있으면
+    if (_controller.text.isNotEmpty && _selectedCategory != null) {
       setState(() {
-        // 화면 업데이트
-        _todoItems
-            .add(_controller.text); //그 글을 투두아이템리스트에 저장 (컨트롤러 가서 쉐어드프리퍼랜스에 저장)
-        _saveTodoItems(); // 쉐어드프리퍼랜스에 있는거 투두아이탬즈 리스트에 저장
+        _todoItems.add({
+          'task': _controller.text,
+          'category': _selectedCategory!,
+          'isChecked': false,
+        });
+        _applyCategorySort(); // 추가 후 정렬 적용
+        _saveTodoItems();
       });
-      _controller.clear(); // 컨트롤러 비우기
+      _controller.clear();
+      _selectedCategory = null;
     }
   }
 
   void _removeTodoItem(int index) {
     setState(() {
-      _todoItems.removeAt(index); //투두아이템즈 리스트에서 몇번째 지우기
-      _saveTodoItems(); // 쉐어드프리퍼랜스에 통으로 저장 후 리스트에 저장
+      _todoItems.removeAt(index);
+      _saveTodoItems();
     });
+  }
+
+  void _toggleCheck(int index) {
+    setState(() {
+      _todoItems[index]['isChecked'] = !_todoItems[index]['isChecked'];
+      _saveTodoItems();
+    });
+  }
+
+  void _updateCategory(int index, String newCategory) {
+    setState(() {
+      _todoItems[index]['category'] = newCategory;
+      _applyCategorySort(); // 카테고리 변경 시 정렬 적용
+      _saveTodoItems();
+    });
+  }
+
+  void _applyCategorySort() {
+    _todoItems.sort((a, b) => _categories
+        .indexOf(a['category'])
+        .compareTo(_categories.indexOf(b['category'])));
   }
 
   final eggColors = EggColors();
@@ -76,7 +105,7 @@ class _TodoListScreenState extends State<TodoListScreen> {
     return Scaffold(
       backgroundColor: eggColors.yellowstyle3,
       appBar: AppBar(
-        backgroundColor: eggColors.yellowstyle2,
+        backgroundColor: eggColors.yellowstyle3,
         title: const Text(
           '병아리의 하루',
           style: TextStyle(fontFamily: 'Hyemin_Bold', fontSize: 40),
@@ -85,52 +114,100 @@ class _TodoListScreenState extends State<TodoListScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            const SizedBox(height: 50), // 빈 공간 추가
             Padding(
-              //주위에 여백 추가
-              padding: const EdgeInsets.all(8.0), // 상하좌우 모두 8픽셀의 여백
+              padding: const EdgeInsets.all(8.0),
               child: TextField(
-                //사용자 입력 필드
-                controller: _controller, // 컨트로러 객체 생성
-                cursorColor: Colors.black, // 커서 키 검은 색
+                controller: _controller,
+                cursorColor: eggColors.basestyle3,
                 decoration: InputDecoration(
-                  //텍스트상자 추가스타일
-                  floatingLabelBehavior:
-                      FloatingLabelBehavior.never, //힌트 텍스트 입력하지않았을때만 보이게 설정
-                  labelText: 'Enter a task', //힌트 텍스트
-                  filled: true, // 텍스트 상자 배경색
-                  fillColor: eggColors.basestyle2, //색상
+                  floatingLabelBehavior: FloatingLabelBehavior.never,
+                  labelText: 'Enter a task',
+                  filled: true,
+                  fillColor: eggColors.basestyle2,
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(30), // 텍스트상자 테두리 동그랗게
-                    borderSide: BorderSide.none, // 텍스트 상자 테두리 없앰
+                    borderRadius: BorderRadius.circular(30),
+                    borderSide: BorderSide.none,
                   ),
                   suffixIcon: IconButton(
-                    // 텍스트상자 오른쪽 아이콘 생성
-                    icon: const Icon(Icons.add), //플러스버튼 생성
-                    onPressed: _addTodoItem, // 누르면 할 일 추가됨
+                    icon: const Icon(Icons.add),
+                    onPressed: _addTodoItem,
+                  ),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8.0),
+              child: DropdownButtonFormField<String>(
+                value: _selectedCategory,
+                hint: const Text('Select a category'),
+                items: _categories.map((category) {
+                  return DropdownMenuItem(
+                    value: category,
+                    child: Text(category),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    _selectedCategory = value;
+                  });
+                },
+                decoration: InputDecoration(
+                  filled: true,
+                  fillColor: eggColors.basestyle2,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(30),
+                    borderSide: BorderSide.none,
                   ),
                 ),
               ),
             ),
             Expanded(
-              // 화면에 꽉 채워줌
               child: ListView.builder(
-                //할 일 리스트
-                itemCount: _todoItems.length, // 리스트에 표시할 할 일 개수
+                itemCount: _todoItems.length,
                 itemBuilder: (context, index) {
-                  // 항목을 만들어냄 (문자,순서)
+                  final item = _todoItems[index];
                   return ListTile(
-                    //리스트의 각 항목을 구성하는 위젯
-                    title: Text(
-                      _todoItems[index], //_todoItems의 몇 번쨰 데이터
-                      style: const TextStyle(
-                          fontFamily: 'Hyemin_Regular', color: Colors.black),
+                    leading: Checkbox(
+                      value: item['isChecked'],
+                      onChanged: (value) {
+                        _toggleCheck(index);
+                      },
+                      activeColor: eggColors.yellowstyle6,
                     ),
-                    trailing: IconButton(
-                      // trailing: 리스트항목에 오른쪽 끝으로 위젯 지정(반대:leading)
-                      icon: const Icon(Icons.delete), // 휴지 아이콘 추가
-                      onPressed: () =>
-                          _removeTodoItem(index), // 버튼 누르면 몇번째가 없어짐
+                    title: Text(
+                      item['task'],
+                      style: TextStyle(
+                        fontFamily: 'Hyemin_Regular',
+                        color: item['isChecked']
+                            ? Colors.grey
+                            : eggColors.basestyle3,
+                        decoration: item['isChecked']
+                            ? TextDecoration.lineThrough
+                            : null,
+                      ),
+                    ),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        DropdownButton<String>(
+                          value: item['category'],
+                          items: _categories.map((category) {
+                            return DropdownMenuItem(
+                              value: category,
+                              child: Text(category),
+                            );
+                          }).toList(),
+                          onChanged: (newCategory) {
+                            if (newCategory != null) {
+                              _updateCategory(index, newCategory);
+                            }
+                          },
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.delete),
+                          onPressed: () => _removeTodoItem(index),
+                        ),
+                      ],
                     ),
                   );
                 },
